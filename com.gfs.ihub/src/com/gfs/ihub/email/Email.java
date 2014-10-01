@@ -21,35 +21,24 @@ public class Email {
 	private final Properties emailProperties;
 	private final Logger logger;
 	private final PasswordAuthentication pa;
-	private final String defaultFrom;
 
 	public Email(final Properties emailProperties, final String username,
-			final String password, final String logFileName,
-			final String defaultFrom) throws IOException {
-		this.logger = new Logger(logFileName);
+			final String password, final Logger logger) throws IOException {
+		this.logger = logger;
 		this.emailProperties = emailProperties;
-		this.pa = new PasswordAuthentication(username, password);
-		this.defaultFrom = defaultFrom;
+		this.pa = username == null ? null : new PasswordAuthentication(
+				username, password);
 	}
 
-	public void sendMail(final String emailFrom, final String emailTo,
-			final String emailCc, final String emailBcc,
-			final String emailSubject, final String emailBody,
-			final boolean multiple, final String fileName,
+	public void sendMail(final String from, final String[] to,
+			final String[] cc, final String[] bcc, final String subject,
+			final String body, final boolean multiple, final String fileName,
 			final byte[] contentData, final String contentType)
 			throws IOException {
 		logger.log("sending");
-		final String from = emailFrom == null ? defaultFrom : emailFrom;
-		final String[] to = emailTo.split(",[ ]*");
-		final String[] cc = emailCc == null ? new String[0] : emailCc
-				.split(",[ ]*");
-		final String[] bcc = emailBcc == null ? new String[0] : emailBcc
-				.split(",[ ]*");
-		final String subject = emailSubject == null ? "BIRT report"
-				: emailSubject;
-		final String body = emailBody == null ? "BIRT report" : emailBody;
-		final Session session = Session.getInstance(emailProperties,
-				new Authenticator() {
+		final Session session = pa == null ? Session
+				.getInstance(emailProperties) : Session.getInstance(
+				emailProperties, new Authenticator() {
 					@Override
 					protected PasswordAuthentication getPasswordAuthentication() {
 						return pa;

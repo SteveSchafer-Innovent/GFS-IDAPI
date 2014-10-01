@@ -1,11 +1,16 @@
 package com.gfs.ihub.email;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import com.actuate.schemas.ArrayOfJobCondition;
@@ -31,108 +36,239 @@ import com.innoventsolutions.idapihelper.IdapiHelper;
 import com.innoventsolutions.idapihelper.IdapiHelperException;
 import com.innoventsolutions.idapihelper.IdapiHelperImpl;
 
-public class Mailer {
+public class Mailer implements AutoCloseable {
+	public static final int ORACLE = 0;
+	public static final int POSTGRESQL = 1;
 	private final IdapiHelper helper;
 	private final Email email;
-	private final Connection connection;
+	private Connection connection = null;
+	private final int sqlGrammar;
+	private final String defaultFrom;
+	private final java.io.File storeDir;
+	private final Logger logger;
 
-	public static class ActuateOptions {
+	public static abstract class PropertiesBasedOptions {
+		final String dirName;
+		final String altDirName;
+		final String fileName;
+		final boolean propertiesFileExists;
+		final Properties properties = new Properties();
+
+		protected PropertiesBasedOptions(final String dirName,
+				final String altDirName, final String fileName)
+				throws IOException {
+			this.dirName = dirName;
+			this.altDirName = altDirName;
+			this.fileName = fileName;
+			boolean fileExists = true;
+			java.io.File dir = new java.io.File(dirName);
+			if (!dir.exists()) {
+				dir = new java.io.File(altDirName);
+				if (!dir.exists()) {
+					fileExists = false;
+				}
+			}
+			if (fileExists) {
+				final java.io.File file = new java.io.File(dir, fileName);
+				fileExists = file.exists();
+				if (fileExists) {
+					final FileInputStream fis = new FileInputStream(file);
+					try {
+						properties.load(fis);
+					} finally {
+						fis.close();
+					}
+				}
+			}
+			this.propertiesFileExists = fileExists;
+		}
+
+		abstract void setProperties();
+
+		final void store() throws IOException {
+			setProperties();
+			java.io.File dir = new java.io.File(dirName);
+			if (!dir.exists()) {
+				dir = new java.io.File(altDirName);
+				if (!dir.exists()) {
+					throw new RuntimeException(
+							"Can't create the properties file");
+				}
+			}
+			final java.io.File file = new java.io.File(dir, fileName);
+			final FileOutputStream fos = new FileOutputStream(file);
+			try {
+				properties.store(fos, "");
+			} finally {
+				fos.close();
+			}
+		}
+	}
+
+	public static class ActuateOptions extends PropertiesBasedOptions {
 		final String urlString;
 		final String volume;
 		final String username;
 		final String password;
 
-		public ActuateOptions(final String urlString, final String volume,
-				final String username, final String password) {
-			this.urlString = urlString;
-			this.volume = volume;
-			this.username = username;
-			this.password = password;
+		public ActuateOptions(final String dirName, final String altDirName,
+				final String fileName, final String urlString,
+				final String volume, final String username,
+				final String password) throws IOException {
+			super(dirName, altDirName, fileName);
+			this.urlString = properties.getProperty("url", urlString);
+			this.volume = properties.getProperty("volume", volume);
+			this.username = properties.getProperty("username", username);
+			this.password = properties.getProperty("password", password);
+		}
+
+		@Override
+		void setProperties() {
+			properties.setProperty("url", urlString);
+			properties.setProperty("volume", volume);
+			properties.setProperty("username", username);
+			properties.setProperty("password", password);
 		}
 	}
 
-	public static class SmtpOptions {
+	public static class SmtpOptions extends PropertiesBasedOptions {
 		final String host;
 		final int port;
 		final String username;
 		final String password;
+		final boolean enableSSL;
+		final boolean enableSTARTTLS;
+		final boolean auth;
+		final String defaultFrom;
 
-		public SmtpOptions(final String host, final int port,
-				final String username, final String password) {
-			this.host = host;
-			this.port = port;
-			this.username = username;
-			this.password = password;
+		public SmtpOptions(final String dirName, final String altDirName,
+				final String fileName, final String host, final int port,
+				final String username, final String password,
+				final boolean enableSSL, final boolean enableSTARTTLS,
+				final boolean auth, final String defaultFrom)
+				throws IOException {
+			super(dirName, altDirName, fileName);
+			this.host = properties.getProperty("mail.smtp.host", host);
+			this.port = Integer.parseInt(properties.getProperty(
+					"mail.smtp.port", String.valueOf(port)));
+			this.username = properties.getProperty("username", username);
+			this.password = properties.getProperty("password", password);
+			this.enableSSL = "true".equalsIgnoreCase(properties.getProperty(
+					"mail.smtp.ssl.enable", String.valueOf(enableSSL)));
+			this.enableSTARTTLS = "true".equalsIgnoreCase(properties
+					.getProperty("mail.smtp.starttls.enable",
+							String.valueOf(enableSTARTTLS)));
+			this.auth = "true".equalsIgnoreCase(properties.getProperty(
+					"mail.smtp.auth", String.valueOf(auth)));
+			this.defaultFrom = properties.getProperty("mail.user", defaultFrom);
+		}
+
+		@Override
+		void setProperties() {
+			properties.setProperty("mail.smtp.host", host);
+			properties.setProperty("mail.smtp.port", String.valueOf(port));
+			if (username != null)
+				properties.setProperty("username", username);
+			else
+				properties.remove("username");
+			if (password != null)
+				properties.setProperty("password", password);
+			else
+				properties.remove("password");
+			properties.setProperty("mail.smtp.ssl.enable",
+					String.valueOf(enableSSL));
+			properties.setProperty("mail.smtp.starttls.enable",
+					String.valueOf(enableSTARTTLS));
+			properties.setProperty("mail.smtp.auth", String.valueOf(auth));
+			properties.setProperty("mail.user", defaultFrom);
 		}
 	}
 
-	public static class SqlOptions {
+	public static class SqlOptions extends PropertiesBasedOptions {
 		final String urlString;
 		final String username;
 		final String password;
 
-		public SqlOptions(final String urlString, final String username,
-				final String password) {
-			this.urlString = urlString;
-			this.username = username;
-			this.password = password;
+		public SqlOptions(final String dirName, final String altDirName,
+				final String fileName, final String urlString,
+				final String username, final String password)
+				throws IOException {
+			super(dirName, altDirName, fileName);
+			this.urlString = properties.getProperty("url", urlString);
+			this.username = properties.getProperty("username", username);
+			this.password = properties.getProperty("password", password);
+		}
+
+		@Override
+		void setProperties() {
+			properties.setProperty("url", urlString);
+			properties.setProperty("username", username);
+			properties.setProperty("password", password);
+		}
+	}
+
+	public static class FileOptions extends PropertiesBasedOptions {
+		final String storeDirName;
+		final String altStoreDirName;
+
+		public FileOptions(final String dirName, final String altDirName,
+				final String fileName, final String storeDirName,
+				final String altStoreDirName) throws IOException {
+			super(dirName, altDirName, fileName);
+			this.storeDirName = properties.getProperty("storeDirName",
+					storeDirName);
+			this.altStoreDirName = properties.getProperty("altStoreDirName",
+					altStoreDirName);
+		}
+
+		@Override
+		void setProperties() {
+			properties.setProperty("storeDirName", storeDirName);
+			properties.setProperty("altStoreDirName", altStoreDirName);
 		}
 	}
 
 	public Mailer(final ActuateOptions actuateOptions,
-			final SmtpOptions smtpOptions, final SqlOptions sqlOptions)
-			throws IdapiHelperException, IOException, SQLException {
+			final SmtpOptions smtpOptions, final SqlOptions sqlOptions,
+			final FileOptions fileOptions) throws IdapiHelperException,
+			IOException, SQLException {
 		final URL serverURL = new URL(actuateOptions.urlString);
 		helper = IdapiHelperImpl.getInstance(new URL[] { serverURL });
 		helper.login(actuateOptions.volume, actuateOptions.username,
 				actuateOptions.password, new byte[0], false);
-		final Properties emailProperties = new Properties();
-		String emailPropertiesFileName = System
-				.getProperty("emailPropertiesFileName");
-		if (emailPropertiesFileName == null)
-			emailPropertiesFileName = "D:/Actuate3/BIRTiHubVisualization/modules/BIRTiHub/iHub/data/server/log/email.properties";
-		final java.io.File propertiesFile = new java.io.File(
-				emailPropertiesFileName);
-		final String username;
-		final String password;
-		final String logFileName;
-		final String defaultLogFileName = "D:/Actuate3/BIRTiHubVisualization/modules/BIRTiHub/iHub/data/server/log/email.log";
-		String defaultFrom = "noreply@gfs.com";
-		if (propertiesFile.exists()) {
-			final FileInputStream fis = new FileInputStream(propertiesFile);
-			try {
-				emailProperties.load(fis);
-			} finally {
-				fis.close();
-			}
-			username = emailProperties.getProperty("username", defaultFrom);
-			password = emailProperties.getProperty("password", "24Proxy61!");
-			defaultFrom = emailProperties.getProperty("from", defaultFrom);
-			logFileName = emailProperties
-					.getProperty("log", defaultLogFileName);
-		} else {
-			emailProperties.setProperty("mail.smtp.host", "mail.gfs.com");
-			emailProperties.setProperty("mail.smtp.port", "2525");
-			emailProperties.setProperty("mail.user", defaultFrom);
-			emailProperties.setProperty("mail.smtp.ssl.enable", "false");
-			emailProperties.setProperty("mail.smtp.starttls.enable", "false");
-			emailProperties.setProperty("mail.smtp.auth", "true");
-			username = defaultFrom;
-			password = "24Proxy61!";
-			logFileName = defaultLogFileName;
-		}
-		this.email = new Email(emailProperties, username, password,
-				logFileName, defaultFrom);
+		this.defaultFrom = smtpOptions.defaultFrom;
+		smtpOptions.store();
+		final Logger logger = new Logger();
+		this.email = new Email(smtpOptions.properties, smtpOptions.username,
+				smtpOptions.password, logger);
+		this.logger = logger;
 		final Connection newConnection = DriverManager.getConnection(
 				sqlOptions.urlString, sqlOptions.username, sqlOptions.password);
+		int sqlGrammar = ORACLE;
+		if (sqlOptions.urlString.startsWith("jdbc:postgresql"))
+			sqlGrammar = POSTGRESQL;
+		this.sqlGrammar = sqlGrammar;
 		// take the connection out of transaction mode so readOnly can be set
 		newConnection.setAutoCommit(true);
 		newConnection.setReadOnly(false);
 		newConnection.setAutoCommit(false);
-		this.connection = newConnection;
+		connection = newConnection;
+		java.io.File storeDir = new java.io.File(fileOptions.storeDirName);
+		if (!storeDir.exists()) {
+			storeDir = new java.io.File(fileOptions.altStoreDirName);
+		}
+		storeDir.mkdirs();
+		this.storeDir = storeDir;
 	}
 
-	public void processJobs() throws IOException {
+	@Override
+	public void close() throws SQLException {
+		connection.close();
+	}
+
+	public void processJobs() throws IOException, SQLException {
+		logger.log("Processing jobs");
+
 		final JobCondition jc1 = new JobCondition();
 		jc1.setField(JobField.State);
 		jc1.setMatch("Succeeded");
@@ -155,13 +291,42 @@ public class Mailer {
 
 		final ArrayOfJobProperties aoJobProps = selectJobsResponse.getJobs();
 		final JobProperties[] jobPropsArray = aoJobProps.getJobProperties();
-		for (int i = 0; i < jobPropsArray.length; i++) {
+		final int jobCount = jobPropsArray.length;
+		int sentCount = 0;
+		for (int i = 0; i < jobCount; i++) {
 			final JobProperties jobProps = jobPropsArray[i];
-			processJob(jobProps.getJobId());
+			final boolean sent = processJob(jobProps.getJobId());
+			if (sent)
+				sentCount++;
 		}
+
+		logger.log(jobCount + " job" + (jobCount == 1 ? "" : "s") + " examined");
+		logger.log(sentCount + " email" + (sentCount == 1 ? "" : "s") + " sent");
 	}
 
-	private void processJob(final String jobId) throws IOException {
+	private static final Map<String, String> CONTENT_TYPES;
+	static {
+		final Map<String, String> map = new HashMap<>();
+		map.put("ps", "application/postscript");
+		map.put("pdf", "application/pdf");
+		map.put("xls", "application/vnd.ms-excel");
+		map.put("xlsx",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+		map.put("ppt", "application/vnd.ms-powerpoint");
+		map.put("pptx",
+				"application/vnd.openxmlformats-officedocument.presentationml.presentation");
+		map.put("doc", "application/msword");
+		map.put("docx",
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+		CONTENT_TYPES = map;
+	}
+
+	private boolean processJob(final String jobId) throws IOException,
+			SQLException {
+
+		if (notificationExistsInDB(jobId))
+			return false;
+
 		final GetJobDetails getJobDetails = new GetJobDetails();
 		getJobDetails.setResultDef(ResultDefConsts.getJobDetailsResultDef());
 		getJobDetails.setJobId(jobId);
@@ -170,38 +335,28 @@ public class Mailer {
 		final JobProperties jobDetails = getJobDetailsResponse
 				.getJobAttributes();
 		if (jobDetails == null)
-			return;
+			return false;
 
 		final String outputFileId = jobDetails.getActualOutputFileId();
 		if (outputFileId == null)
-			return;
+			return false;
 
 		final String outputFileName = jobDetails.getActualOutputFileName();
 		if (outputFileName == null)
-			return;
+			return false;
 		// /Home/el1zt/Parameter Value File/NJ.PDF;1
 		final int indexOfSemiColon = outputFileName.lastIndexOf(';');
 		final String rootOutputFileName = indexOfSemiColon < 0 ? outputFileName
 				: outputFileName.substring(0, indexOfSemiColon);
 		final int indexOfDot = rootOutputFileName.lastIndexOf('.');
 		if (indexOfDot < 0)
-			return;
-		final String outputFileType = rootOutputFileName
-				.substring(indexOfDot + 1);
-		if ("html".equalsIgnoreCase(outputFileType)
-				|| "rptdocument".equalsIgnoreCase(outputFileType)
-				|| "data".equalsIgnoreCase(outputFileType))
-			return;
+			return false;
+		final String outputFileType = rootOutputFileName.substring(
+				indexOfDot + 1).toLowerCase();
 
-		/*
-		 * String contentType; if ("pdf".equalsIgnoreCase(outputFileType)) {
-		 * contentType = "application/pdf"; } else if
-		 * ("xls".equalsIgnoreCase(outputFileType)) { contentType =
-		 * "application/vnd.ms-excel"; } else if
-		 * ("xlsx".equalsIgnoreCase(outputFileType)) { contentType =
-		 * "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-		 * } else { contentType = "application/octet-stream"; }
-		 */
+		final String contentType = CONTENT_TYPES.get(outputFileType);
+		if (contentType == null)
+			return false;
 
 		String emailFrom = null;
 		String emailTo = null;
@@ -210,7 +365,7 @@ public class Mailer {
 		final ArrayOfParameterValue aoPV = getJobDetailsResponse
 				.getReportParameters();
 		if (aoPV == null)
-			return;
+			return false;
 		final ParameterValue[] pvArray = aoPV.getParameterValue();
 		for (int i = 0; i < pvArray.length; i++) {
 			final ParameterValue pv = pvArray[i];
@@ -228,7 +383,7 @@ public class Mailer {
 			}
 		}
 		if (emailTo == null || emailTo.trim().length() == 0)
-			return;
+			return false;
 
 		final GetFileDetails getFileDetails = new GetFileDetails();
 		getFileDetails.setFileId(outputFileId);
@@ -251,17 +406,241 @@ public class Mailer {
 		// get content bytes using DownloadFile
 		final DownloadFile downloadFile = new DownloadFile();
 		downloadFile.setFileId(outputFileId);
-		downloadFile.setDownloadEmbedded(Boolean.TRUE);
+		downloadFile.setDownloadEmbedded(Boolean.TRUE); // needed to get bytes
 		final DownloadFileResponse downloadFileResponse = helper
 				.downloadFile(downloadFile);
 		final Attachment attachment = downloadFileResponse.getContent();
-		// final ArrayOfAttachment aoAttachment = downloadFileResponse
-		// .getContainedFiles(); // is null
-		// final File attachmentFile = downloadFileResponse.getFile();
-		final byte[] contentData = attachment.getContentData(); // TODO is null
-		final String contentType = attachment.getContentType();
+		final byte[] contentData = attachment.getContentData();
+		// final String contentType = attachment.getContentType(); // always
+		// application/octet-stream
 
-		email.sendMail(emailFrom, emailTo, null, null, emailSubject, emailBody,
-				false, fileName, contentData, contentType);
+		saveFile(contentData, jobId, outputFileType);
+
+		final int mimeTypePk = addMimeTypeToDB(contentType);
+
+		final String from = emailFrom == null ? defaultFrom : emailFrom;
+		final String[] to = emailTo.split(",[ ]*");
+		final String[] cc = new String[0];
+		final String[] bcc = new String[0];
+		final String subject = emailSubject == null ? "BIRT report"
+				: emailSubject;
+		final String body = emailBody == null ? "BIRT report" : emailBody;
+
+		final int senderPk = addEmailAddressToDB(from);
+
+		final int notificationId = addNotificationToDB(jobId, senderPk,
+				mimeTypePk, subject, body, fileName);
+
+		for (int i = 0; i < to.length; i++) {
+			final String address = to[i];
+			final int addressId = addEmailAddressToDB(address);
+			addRecipientToDB(addressId, notificationId);
+		}
+
+		email.sendMail(from, to, cc, bcc, subject, body, false, fileName,
+				contentData, contentType);
+		return true;
+	}
+
+	private void saveFile(final byte[] contentData, final String jobId,
+			final String outputFileType) throws IOException {
+		final String fileName = jobId + "." + outputFileType;
+		final java.io.File file = new java.io.File(this.storeDir, fileName);
+		final FileOutputStream fos = new FileOutputStream(file);
+		try {
+			fos.write(contentData);
+		} finally {
+			fos.close();
+		}
+	}
+
+	private int addEmailAddressToDB(final String address) throws SQLException {
+		{
+			final PreparedStatement stmt = connection
+					.prepareStatement("select email_address_sk from email_account where email_address = ?");
+			try {
+				stmt.setString(1, address);
+				final ResultSet rs = stmt.executeQuery();
+				try {
+					while (rs.next()) {
+						return rs.getInt(1);
+					}
+				} finally {
+					rs.close();
+				}
+			} finally {
+				stmt.close();
+			}
+		}
+		int newId = 1;
+		{
+			final String sql;
+			if (sqlGrammar == ORACLE)
+				sql = "select email_account_seq.nextval from dual";
+			else
+				sql = "select nextval('email_account_seq')";
+			final PreparedStatement stmt = connection.prepareStatement(sql);
+			try {
+				final ResultSet rs = stmt.executeQuery();
+				try {
+					if (rs.next()) {
+						newId = rs.getInt(1);
+					}
+				} finally {
+					rs.close();
+				}
+			} finally {
+				stmt.close();
+			}
+		}
+		{
+			final PreparedStatement stmt = connection
+					.prepareStatement("insert into email_account "
+							+ "(email_address_sk, email_address) values (?, ?)");
+			try {
+				stmt.setInt(1, newId);
+				stmt.setString(2, address);
+				stmt.execute();
+			} finally {
+				stmt.close();
+			}
+		}
+		connection.commit();
+		return newId;
+	}
+
+	int addMimeTypeToDB(final String formatType) throws SQLException {
+		{
+			final PreparedStatement stmt = connection
+					.prepareStatement("select mime_type_sk from mime_type where mime_type_txt = ?");
+			try {
+				stmt.setString(1, formatType);
+				final ResultSet rs = stmt.executeQuery();
+				try {
+					while (rs.next()) {
+						return rs.getInt(1);
+					}
+				} finally {
+					rs.close();
+				}
+			} finally {
+				stmt.close();
+			}
+		}
+		int newId = 1;
+		{
+			final String sql;
+			if (sqlGrammar == ORACLE)
+				sql = "select mime_type_seq.nextval from dual";
+			else
+				sql = "select nextval('mime_type_seq')";
+			final PreparedStatement stmt = connection.prepareStatement(sql);
+			try {
+				final ResultSet rs = stmt.executeQuery();
+				try {
+					if (rs.next()) {
+						newId = rs.getInt(1);
+					}
+				} finally {
+					rs.close();
+				}
+			} finally {
+				stmt.close();
+			}
+		}
+		final PreparedStatement stmt3 = connection
+				.prepareStatement("insert into mime_type "
+						+ "(mime_type_sk, mime_type_txt) values (?, ?)");
+		try {
+			stmt3.setInt(1, newId);
+			stmt3.setString(2, formatType);
+			stmt3.execute();
+		} finally {
+			stmt3.close();
+		}
+		connection.commit();
+		return newId;
+	}
+
+	boolean notificationExistsInDB(final String jobId) throws SQLException {
+		final PreparedStatement stmt = connection
+				.prepareStatement("select actuate_notification_sk from actuate_notification where job_id = ?");
+		try {
+			stmt.setString(1, jobId);
+			final ResultSet rs = stmt.executeQuery();
+			try {
+				if (rs.next())
+					return true;
+			} finally {
+				rs.close();
+			}
+		} finally {
+			stmt.close();
+		}
+		connection.commit();
+		return false;
+	}
+
+	int addNotificationToDB(final String jobId, final int senderPk,
+			final int mimeTypePk, final String subject, final String body,
+			final String fileName) throws SQLException {
+		int newId = 1;
+		{
+			final String sql;
+			if (sqlGrammar == ORACLE)
+				sql = "select actuate_notification_seq.nextval from dual";
+			else
+				sql = "select nextval('actuate_notification_seq')";
+			final PreparedStatement stmt = connection.prepareStatement(sql);
+			try {
+				final ResultSet rs = stmt.executeQuery();
+				try {
+					if (rs.next()) {
+						newId = rs.getInt(1);
+					}
+				} finally {
+					rs.close();
+				}
+			} finally {
+				stmt.close();
+			}
+		}
+		{
+			final PreparedStatement stmt = connection
+					.prepareStatement("insert into actuate_notification "
+							+ "(actuate_notification_sk, job_iid, sender_email_address_sk, mime_type_sk, msg_sent_time, msg_subject_txn, msg_body_txt, rel_path_file_name) "
+							+ "values (?, ?, ?, ?, ?, ?)");
+			try {
+				int i = 0;
+				stmt.setInt(++i, newId);
+				stmt.setString(++i, jobId);
+				stmt.setInt(++i, senderPk);
+				stmt.setInt(++i, mimeTypePk);
+				stmt.setString(++i, subject);
+				stmt.setDate(++i, new java.sql.Date(System.currentTimeMillis()));
+				stmt.setString(++i, body);
+				stmt.setString(++i, fileName);
+				stmt.execute();
+			} finally {
+				stmt.close();
+			}
+		}
+		connection.commit();
+		return newId;
+	}
+
+	void addRecipientToDB(final int addressId, final int notificationId)
+			throws SQLException {
+		final PreparedStatement stmt = connection
+				.prepareStatement("insert into actuate_notify_recipient "
+						+ "(rcpnt_email_address_sk, actuate_notification_sk) values (?, ?)");
+		try {
+			stmt.setInt(1, addressId);
+			stmt.setInt(2, notificationId);
+			stmt.execute();
+		} finally {
+			stmt.close();
+		}
+		connection.commit();
 	}
 }

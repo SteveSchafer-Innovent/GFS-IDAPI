@@ -1,78 +1,63 @@
 package com.gfs.ihub.email;
 
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.util.Date;
 
 public class Logger {
-	private final String logFilename;
+	private final File file;
 
-	public Logger(final String logFilename) {
-		this.logFilename = logFilename;
+	public Logger() {
+		this.file = null;
+	}
+
+	public Logger(final String dirName, final String altDirName,
+			final String fileName) {
+		final File dir = new File(dirName);
+		if (dir.exists())
+			this.file = new File(dir, fileName);
+		else {
+			final File altDir = new File(altDirName);
+			if (altDir.exists())
+				this.file = new File(altDir, fileName);
+			else
+				this.file = null;
+		}
+	}
+
+	private void log(final PrintStream ps, final String message,
+			final Throwable t) {
+		ps.print(new Date());
+		ps.print(" ");
+		ps.println(message);
+		if (t != null)
+			t.printStackTrace(ps);
 	}
 
 	public void log(final String message) {
+		this.log(message, null);
+	}
+
+	public void log(final String message, final Throwable t) {
 		try {
-			final String filename = logFilename;
-			if (logFilename == null) {
-				final PrintStream out = System.out;
-				out.print(new Date());
-				out.print(" ");
-				out.println(message);
-			}
-			else {
-				final File file = new File(filename);
-				final FileWriter fw = new FileWriter(file, true);
-				final PrintWriter pw = new PrintWriter(fw);
+			final File file = this.file;
+			if (file == null) {
+				log(System.out, message, t);
+			} else {
+				final FileOutputStream fos = new FileOutputStream(file, true);
+				final PrintStream ps = new PrintStream(fos);
 				try {
-					pw.print(new Date());
-					pw.print(" ");
-					pw.println(message);
-				}
-				finally {
-					pw.close();
+					log(ps, message, t);
+				} finally {
+					ps.close();
 				}
 			}
-		}
-		catch (final IOException e) {
+		} catch (final IOException e) {
 			System.out.println("unable to log " + message);
 			e.printStackTrace();
 		}
 	}
 
-	void log(final String message, final Throwable t) {
-		try {
-			final String filename = logFilename;
-			if (filename == null) {
-				final PrintStream out = System.out;
-				out.print(new Date());
-				out.print(" ");
-				out.println(message);
-				t.printStackTrace(out);
-			}
-			else {
-				final File file = new File(filename);
-				final FileWriter fw = new FileWriter(file, true);
-				try {
-					final PrintWriter pw = new PrintWriter(fw);
-					pw.print(new Date());
-					pw.print(" ");
-					pw.println(message);
-					t.printStackTrace(pw);
-				}
-				finally {
-					fw.close();
-				}
-			}
-		}
-		catch (final IOException e) {
-			System.out.println(message);
-			t.printStackTrace();
-			log("Log failure:");
-			e.printStackTrace();
-		}
-	}
 }
