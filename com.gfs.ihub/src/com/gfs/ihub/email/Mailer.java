@@ -324,7 +324,7 @@ public class Mailer implements AutoCloseable {
 	private boolean processJob(final String jobId) throws IOException,
 			SQLException {
 
-		if (notificationExistsInDB(jobId))
+		if (notificationExistsInDB(Long.parseLong(jobId)))
 			return false;
 
 		final GetJobDetails getJobDetails = new GetJobDetails();
@@ -428,8 +428,8 @@ public class Mailer implements AutoCloseable {
 
 		final int senderPk = addEmailAddressToDB(from);
 
-		final int notificationId = addNotificationToDB(jobId, senderPk,
-				mimeTypePk, subject, body, fileName);
+		final int notificationId = addNotificationToDB(Long.parseLong(jobId),
+				senderPk, mimeTypePk, subject, body, fileName);
 
 		for (int i = 0; i < to.length; i++) {
 			final String address = to[i];
@@ -562,11 +562,11 @@ public class Mailer implements AutoCloseable {
 		return newId;
 	}
 
-	boolean notificationExistsInDB(final String jobId) throws SQLException {
+	boolean notificationExistsInDB(final long jobId) throws SQLException {
 		final PreparedStatement stmt = connection
-				.prepareStatement("select actuate_notification_sk from actuate_notification where job_id = ?");
+				.prepareStatement("select actuate_notification_sk from actuate_notification where job_iid = ?");
 		try {
-			stmt.setString(1, jobId);
+			stmt.setLong(1, jobId);
 			final ResultSet rs = stmt.executeQuery();
 			try {
 				if (rs.next())
@@ -581,7 +581,7 @@ public class Mailer implements AutoCloseable {
 		return false;
 	}
 
-	int addNotificationToDB(final String jobId, final int senderPk,
+	int addNotificationToDB(final long jobId, final int senderPk,
 			final int mimeTypePk, final String subject, final String body,
 			final String fileName) throws SQLException {
 		int newId = 1;
@@ -608,16 +608,16 @@ public class Mailer implements AutoCloseable {
 		{
 			final PreparedStatement stmt = connection
 					.prepareStatement("insert into actuate_notification "
-							+ "(actuate_notification_sk, job_iid, sender_email_address_sk, mime_type_sk, msg_sent_time, msg_subject_txn, msg_body_txt, rel_path_file_name) "
-							+ "values (?, ?, ?, ?, ?, ?)");
+							+ "(actuate_notification_sk, job_iid, sender_email_address_sk, mime_type_sk, msg_sent_time, msg_subject_txt, msg_body_txt, rel_path_file_name) "
+							+ "values (?, ?, ?, ?, ?, ?, ?, ?)");
 			try {
 				int i = 0;
 				stmt.setInt(++i, newId);
-				stmt.setString(++i, jobId);
+				stmt.setLong(++i, jobId);
 				stmt.setInt(++i, senderPk);
 				stmt.setInt(++i, mimeTypePk);
-				stmt.setString(++i, subject);
 				stmt.setDate(++i, new java.sql.Date(System.currentTimeMillis()));
+				stmt.setString(++i, subject);
 				stmt.setString(++i, body);
 				stmt.setString(++i, fileName);
 				stmt.execute();
