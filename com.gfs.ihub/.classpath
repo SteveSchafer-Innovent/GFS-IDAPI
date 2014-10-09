@@ -5,5 +5,6 @@
 	<classpathentry combineaccessrules="false" kind="src" path="/birt_libs"/>
 	<classpathentry kind="lib" path="lib/mail.jar"/>
 	<classpathentry kind="lib" path="lib/postgresql-9.3-1102.jdbc41.jar"/>
+	<classpathentry kind="lib" path="lib/ojdbc6.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

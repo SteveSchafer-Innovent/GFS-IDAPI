@@ -426,6 +426,9 @@ public class Mailer implements AutoCloseable {
 				: emailSubject;
 		final String body = emailBody == null ? "BIRT report" : emailBody;
 
+		email.sendMail(from, to, cc, bcc, subject, body, false, fileName,
+				contentData, contentType);
+
 		final int senderPk = addEmailAddressToDB(from);
 
 		final int notificationId = addNotificationToDB(Long.parseLong(jobId),
@@ -437,8 +440,6 @@ public class Mailer implements AutoCloseable {
 			addRecipientToDB(addressId, notificationId);
 		}
 
-		email.sendMail(from, to, cc, bcc, subject, body, false, fileName,
-				contentData, contentType);
 		return true;
 	}
 
@@ -476,7 +477,7 @@ public class Mailer implements AutoCloseable {
 		{
 			final String sql;
 			if (sqlGrammar == ORACLE)
-				sql = "select email_account_seq.nextval from dual";
+				sql = "select actuate_notify_admin.email_account_seq.nextval from dual";
 			else
 				sql = "select nextval('email_account_seq')";
 			final PreparedStatement stmt = connection.prepareStatement(sql);
@@ -531,7 +532,7 @@ public class Mailer implements AutoCloseable {
 		{
 			final String sql;
 			if (sqlGrammar == ORACLE)
-				sql = "select mime_type_seq.nextval from dual";
+				sql = "select actuate_notify_admin.mime_type_seq.nextval from dual";
 			else
 				sql = "select nextval('mime_type_seq')";
 			final PreparedStatement stmt = connection.prepareStatement(sql);
@@ -588,7 +589,7 @@ public class Mailer implements AutoCloseable {
 		{
 			final String sql;
 			if (sqlGrammar == ORACLE)
-				sql = "select actuate_notification_seq.nextval from dual";
+				sql = "select actuate_notify_admin.actuate_notification_seq.nextval from dual";
 			else
 				sql = "select nextval('actuate_notification_seq')";
 			final PreparedStatement stmt = connection.prepareStatement(sql);

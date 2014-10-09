@@ -4,8 +4,8 @@ import java.sql.SQLException;
 import com.gfs.ihub.email.Mailer;
 import com.innoventsolutions.idapihelper.IdapiHelperException;
 
-public class TestMailer {
-	public static final String CONFIG_DIR = "D:/Actuate3/BIRTiHubVisualization/modules/BIRTiHub/iHub/data/server/log/email.properties";
+public class RunMailer {
+	public static final String CONFIG_DIR = "D:/Actuate3/BIRTiHubVisualization/modules/BIRTiHub/iHub/data/server/log/mailer";
 	public static final String ALT_CONFIG_DIR = "C:/Clients/GFS";
 
 	/**
@@ -23,9 +23,15 @@ public class TestMailer {
 		final Mailer.SmtpOptions smtpOptions = new Mailer.SmtpOptions(
 				CONFIG_DIR, ALT_CONFIG_DIR, "smtp.properties", "smtp.gfs.com",
 				25, null, null, false, false, false, "noreply@gfs.com");
+		/*
+		 * final Mailer.SqlOptions sqlOptions = new
+		 * Mailer.SqlOptions(CONFIG_DIR, ALT_CONFIG_DIR, "sql.properties",
+		 * "jdbc:postgresql://localhost/gfs_email", "steve", null);
+		 */
 		final Mailer.SqlOptions sqlOptions = new Mailer.SqlOptions(CONFIG_DIR,
 				ALT_CONFIG_DIR, "sql.properties",
-				"jdbc:postgresql://localhost/gfs_email", "steve", null);
+				"jdbc:oracle:thin:@dtw01t.grhq.gfs.com:45064:DTW01T",
+				"ACTUATE_NOTIFY_APPL", null);
 		final Mailer.FileOptions fileOptions = new Mailer.FileOptions(
 				CONFIG_DIR, ALT_CONFIG_DIR, "file.properties", CONFIG_DIR
 						+ "/email_attachments", ALT_CONFIG_DIR
