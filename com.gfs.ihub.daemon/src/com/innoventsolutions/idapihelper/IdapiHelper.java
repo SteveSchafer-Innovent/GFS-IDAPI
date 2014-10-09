@@ -44,14 +44,14 @@ public interface IdapiHelper extends ActuateSoapPort
 	String getVolume();
 
 	byte[] getConnectionHandle();
-
 	void setConnectionHandle(byte[] value);
-
 	long getConnectTime();
-
 	long getLoginTime();
-
 	User getUser();
-
 	String toString();
+	
+	Object[] getAttachments();
+	void clearAttachments();
+
+
 }

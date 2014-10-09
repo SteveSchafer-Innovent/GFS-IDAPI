@@ -154,7 +154,7 @@ public class IdapiHelperImpl implements InvocationHandler
 	{
 		return api == null ? null : api.getAuthId();
 	}
-
+	
 	/**
 	 * A login method that is easier to use than the one provided in
 	 * ActuateSoapPort
