@@ -1,6 +1,7 @@
 package com.gfs.ihub.options;
 
-import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Properties;
 
@@ -13,32 +14,23 @@ public abstract class PropertiesBasedOptions {
 	final boolean propertiesFileExists;
 	final Properties properties = new Properties();
 
-	protected PropertiesBasedOptions(final String configDirName, final String configFileName) throws IOException {
+	protected PropertiesBasedOptions(final String configDirName,
+			final String configFileName) throws IOException {
 		this.configDirName = configDirName;
 		this.configFileName = configFileName;
-		boolean fileExists = true;
-		java.io.File dir = new java.io.File(configDirName);
+		final java.io.File dir = new java.io.File(configDirName);
 		if (!dir.exists()) {
-			throw new RuntimeException("Can't create the properties directory");
-		}
-		this.propertiesFileExists = fileExists;
-	}
-
-	abstract void setProperties();
-
-	public void store() throws IOException {
-		setProperties();
-		java.io.File dir = new java.io.File(configDirName);
-		if (!dir.exists()) {
-			throw new RuntimeException("Can't create the properties file");
+			throw new FileNotFoundException(
+					"Can't find the properties directory " + dir);
 		}
 		final java.io.File file = new java.io.File(dir, configFileName);
-		final FileOutputStream fos = new FileOutputStream(file);
-		try {
-			properties.store(fos, "");
-		} finally {
-			fos.close();
-		}
+		final boolean fileExists = file.exists();
+		if (!fileExists)
+			throw new FileNotFoundException("Can't find the properties file "
+					+ file);
+		final FileInputStream fis = new FileInputStream(file);
+		properties.load(fis);
+		this.propertiesFileExists = fileExists;
 	}
 
 	public Properties getProperties() {

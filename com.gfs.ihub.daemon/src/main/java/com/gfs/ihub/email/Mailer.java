@@ -49,29 +49,29 @@ public class Mailer implements AutoCloseable {
 	private final java.io.File storeDir;
 	private final Logger logger;
 
-
 	public Mailer(final ActuateOptions actuateOptions,
 			final SmtpOptions smtpOptions, final SqlOptions sqlOptions,
 			final FileOptions fileOptions) throws IdapiHelperException,
 			IOException, SQLException {
-		
-		//Setup Actuate
+
+		// Setup Actuate
 		final URL serverURL = new URL(actuateOptions.getUrlString());
 		helper = IdapiHelperImpl.getInstance(new URL[] { serverURL });
 		helper.login(actuateOptions.getVolume(), actuateOptions.getUsername(),
 				actuateOptions.getPassword(), new byte[0], false);
-		
-		//Setup SMTP Server
+
+		// Setup SMTP Server
 		this.defaultFrom = smtpOptions.getDefaultFrom();
-		smtpOptions.store();
+		// smtpOptions.store();
 		final Logger logger = new Logger();
-		this.email = new Email(smtpOptions.getProperties(), smtpOptions.getUsername(),
-				smtpOptions.getPassword(), logger);
+		this.email = new Email(smtpOptions.getProperties(),
+				smtpOptions.getUsername(), smtpOptions.getPassword(), logger);
 		this.logger = logger;
-		
-		//Setup JDBC connection
+
+		// Setup JDBC connection
 		final Connection newConnection = DriverManager.getConnection(
-				sqlOptions.getUrlString(), sqlOptions.getUsername(), sqlOptions.getPassword());
+				sqlOptions.getUrlString(), sqlOptions.getUsername(),
+				sqlOptions.getPassword());
 		int sqlGrammar = ORACLE;
 		if (sqlOptions.getUrlString().startsWith("jdbc:postgresql"))
 			sqlGrammar = POSTGRESQL;
@@ -81,12 +81,10 @@ public class Mailer implements AutoCloseable {
 		newConnection.setReadOnly(false);
 		newConnection.setAutoCommit(false);
 		connection = newConnection;
-		
+
 		// Setup the location to store download files
-		java.io.File storeDir = new java.io.File(fileOptions.getStoreDirName());
-		if (!storeDir.exists()) {
-			throw new RuntimeException("No smtp config file");
-		}
+		final java.io.File storeDir = new java.io.File(
+				fileOptions.getStoreDirName());
 		storeDir.mkdirs();
 		this.storeDir = storeDir;
 	}

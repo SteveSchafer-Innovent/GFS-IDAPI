@@ -7,19 +7,16 @@ public class SqlOptions extends PropertiesBasedOptions {
 	final String username;
 	final String password;
 
-	public SqlOptions(final String configDirName, final String configFileName, final String urlString, final String username,
-			final String password) throws IOException {
-		super(configDirName,  configFileName);
-		this.urlString = properties.getProperty("url", urlString);
-		this.username = properties.getProperty("username", username);
-		this.password = properties.getProperty("password", password);
-	}
-
-	@Override
-	void setProperties() {
-		properties.setProperty("url", urlString);
-		properties.setProperty("username", username);
-		properties.setProperty("password", password);
+	public SqlOptions(final String configDirName, final String configFileName)
+			throws IOException {
+		super(configDirName, configFileName);
+		this.urlString = properties.getProperty("url");
+		if (urlString == null)
+			throw new RuntimeException("SQL properties is missing url");
+		this.username = properties.getProperty("username");
+		if (username == null)
+			throw new RuntimeException("SQL properties is missing username");
+		this.password = properties.getProperty("password");
 	}
 
 	public String getUrlString() {

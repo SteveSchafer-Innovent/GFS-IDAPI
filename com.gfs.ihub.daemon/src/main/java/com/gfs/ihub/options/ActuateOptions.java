@@ -8,21 +8,17 @@ public class ActuateOptions extends PropertiesBasedOptions {
 	final String username;
 	final String password;
 
-	public ActuateOptions(final String configDirName, final String configFileName, final String urlString,
-			final String volume, final String username, final String password) throws IOException {
+	public ActuateOptions(final String configDirName,
+			final String configFileName) throws IOException {
 		super(configDirName, configFileName);
-		this.urlString = properties.getProperty("url", urlString);
-		this.volume = properties.getProperty("volume", volume);
-		this.username = properties.getProperty("username", username);
-		this.password = properties.getProperty("password", password);
-	}
-
-	@Override
-	void setProperties() {
-		properties.setProperty("url", urlString);
-		properties.setProperty("volume", volume);
-		properties.setProperty("username", username);
-		properties.setProperty("password", password);
+		this.urlString = properties.getProperty("url");
+		if (urlString == null)
+			throw new RuntimeException("Actuate properties is missing url");
+		this.volume = properties.getProperty("volume");
+		this.username = properties.getProperty("username");
+		if (username == null)
+			throw new RuntimeException("Actuate properties is missing username");
+		this.password = properties.getProperty("password");
 	}
 
 	public String getUrlString() {
