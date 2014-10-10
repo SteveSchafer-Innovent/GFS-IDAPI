@@ -10,7 +10,7 @@ public class ActuateOptions extends PropertiesBasedOptions {
 
 	public ActuateOptions(final String dirName, final String altDirName, final String fileName, final String urlString,
 			final String volume, final String username, final String password) throws IOException {
-		super(dirName, altDirName, fileName);
+		super(dirName, fileName);
 		this.urlString = properties.getProperty("url", urlString);
 		this.volume = properties.getProperty("volume", volume);
 		this.username = properties.getProperty("username", username);

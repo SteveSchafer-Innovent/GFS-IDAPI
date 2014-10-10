@@ -8,7 +8,7 @@ public class CypressOptions extends PropertiesBasedOptions {
 	
 	public CypressOptions(final String dirName, final String altDirName, final String fileName, final String iHubCypressFolderName,
 			final String osDestinationFolder) throws IOException {
-		super(dirName, altDirName, fileName);
+		super(dirName, fileName);
 		this.iHubCypressFolderName = properties.getProperty("iHubCypressFolderName", iHubCypressFolderName);
 		this.osDestinationFolder = properties.getProperty("osDestinationFolder", osDestinationFolder);
 	}

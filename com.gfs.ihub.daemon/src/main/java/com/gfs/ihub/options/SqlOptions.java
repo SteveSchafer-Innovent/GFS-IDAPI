@@ -9,7 +9,7 @@ public class SqlOptions extends PropertiesBasedOptions {
 
 	public SqlOptions(final String dirName, final String altDirName, final String fileName, final String urlString, final String username,
 			final String password) throws IOException {
-		super(dirName, altDirName, fileName);
+		super(dirName,  fileName);
 		this.urlString = properties.getProperty("url", urlString);
 		this.username = properties.getProperty("username", username);
 		this.password = properties.getProperty("password", password);

@@ -8,7 +8,7 @@ public class FileOptions extends PropertiesBasedOptions {
 	
 	public FileOptions(final String dirName, final String altDirName, final String fileName, final String storeDirName,
 			final String altStoreDirName) throws IOException {
-		super(dirName, altDirName, fileName);
+		super(dirName,  fileName);
 		this.storeDirName = properties.getProperty("storeDirName", storeDirName);
 		this.altStoreDirName = properties.getProperty("altStoreDirName", altStoreDirName);
 	}
