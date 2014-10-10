@@ -1,6 +1,8 @@
 import java.io.IOException;
 import java.sql.SQLException;
 
+import javax.mail.MessagingException;
+
 import com.gfs.ihub.email.Mailer;
 import com.gfs.ihub.options.ActuateOptions;
 import com.gfs.ihub.options.FileOptions;
@@ -15,9 +17,10 @@ public class RunMailer extends BaseDaemon {
 	 * @throws IOException
 	 * @throws IdapiHelperException
 	 * @throws SQLException
+	 * @throws MessagingException
 	 */
 	public static void main(final String[] args) throws IdapiHelperException,
-			IOException, SQLException {
+			IOException, SQLException, MessagingException {
 
 		RunMailer.init(args);
 

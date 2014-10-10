@@ -43,7 +43,7 @@ public interface IdapiHelper extends ActuateSoapPort {
 	UploadFileResponse uploadFile(UploadFile request,
 			AttachmentPart attachmentPart) throws Exception;
 
-	String downloadFile(String FileName, boolean decomposeCompoundDocument,
+	String downloadFile(String fileId, boolean decomposeCompoundDocument,
 			boolean downloadEmbedded, String downloadDirectory)
 			throws Exception;
 
@@ -60,11 +60,13 @@ public interface IdapiHelper extends ActuateSoapPort {
 	long getConnectTime();
 
 	long getLoginTime();
-	User getUser();
-	String toString();
-	
-	Object[] getAttachments();
-	void clearAttachments();
 
+	User getUser();
+
+	String toString();
+
+	Object[] getAttachments();
+
+	void clearAttachments();
 
 }

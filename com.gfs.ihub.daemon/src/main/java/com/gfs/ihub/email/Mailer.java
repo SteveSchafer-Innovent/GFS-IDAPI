@@ -1,8 +1,12 @@
 package com.gfs.ihub.email;
 
+import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URL;
+import java.rmi.RemoteException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -11,12 +15,16 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.mail.MessagingException;
+import javax.xml.soap.SOAPException;
+
+import org.apache.axis.AxisFault;
+import org.apache.axis.attachments.AttachmentPart;
+
 import com.actuate.schemas.ArrayOfJobCondition;
 import com.actuate.schemas.ArrayOfJobProperties;
 import com.actuate.schemas.ArrayOfParameterValue;
-import com.actuate.schemas.Attachment;
 import com.actuate.schemas.DownloadFile;
-import com.actuate.schemas.DownloadFileResponse;
 import com.actuate.schemas.File;
 import com.actuate.schemas.GetFileDetails;
 import com.actuate.schemas.GetFileDetailsResponse;
@@ -93,7 +101,8 @@ public class Mailer implements AutoCloseable {
 		connection.close();
 	}
 
-	public void processJobs() throws IOException, SQLException {
+	public void processJobs() throws IOException, SQLException,
+			MessagingException {
 		logger.log("Processing jobs");
 
 		final JobCondition jc1 = new JobCondition();
@@ -149,7 +158,7 @@ public class Mailer implements AutoCloseable {
 	}
 
 	private boolean processJob(final String jobId) throws IOException,
-			SQLException {
+			SQLException, MessagingException {
 
 		if (notificationExistsInDB(Long.parseLong(jobId)))
 			return false;
@@ -230,18 +239,46 @@ public class Mailer implements AutoCloseable {
 		 * getContentResponse.getConnectionHandle();
 		 */
 
-		// get content bytes using DownloadFile
-		final DownloadFile downloadFile = new DownloadFile();
-		downloadFile.setFileId(outputFileId);
-		downloadFile.setDownloadEmbedded(Boolean.TRUE); // needed to get bytes
-		final DownloadFileResponse downloadFileResponse = helper
-				.downloadFile(downloadFile);
-		final Attachment attachment = downloadFileResponse.getContent();
-		final byte[] contentData = attachment.getContentData();
 		// final String contentType = attachment.getContentType(); // always
 		// application/octet-stream
 
-		saveFile(contentData, jobId, outputFileType);
+		// get content bytes using DownloadFile
+		final DownloadFile downloadFile = new DownloadFile();
+		downloadFile.setFileId(outputFileId);
+		downloadFile.setDecomposeCompoundDocument(new Boolean(false));
+		downloadFile.setDownloadEmbedded(new Boolean(false));
+
+		final String localFileName = jobId + "." + outputFileType;
+		final java.io.File outputFile = new java.io.File(this.storeDir,
+				localFileName);
+		try {
+			helper.downloadFile(downloadFile);
+			BufferedOutputStream outStream = null;
+			try {
+				outStream = new BufferedOutputStream(new FileOutputStream(
+						outputFile));
+				final Object[] attachments = helper.getAttachments();
+				for (int i = 0; i < attachments.length; i++) {
+					final AttachmentPart attachmentPart = (AttachmentPart) attachments[i];
+					if (attachmentPart == null)
+						continue;
+					final InputStream inStream = attachmentPart
+							.getDataHandler().getInputStream();
+					saveToStream(inStream, outStream);
+				}
+			} finally {
+				helper.clearAttachments();
+				if (outStream != null) {
+					outStream.close();
+				}
+			}
+		} catch (final SOAPException e) {
+			throw AxisFault.makeFault(e);
+		} catch (final RemoteException e) {
+			throw e;
+		} catch (final IOException e) {
+			throw e;
+		}
 
 		final int mimeTypePk = addMimeTypeToDB(contentType);
 
@@ -254,7 +291,7 @@ public class Mailer implements AutoCloseable {
 		final String body = emailBody == null ? "BIRT report" : emailBody;
 
 		email.sendMail(from, to, cc, bcc, subject, body, false, fileName,
-				contentData, contentType);
+				outputFile, contentType);
 
 		final int senderPk = addEmailAddressToDB(from);
 
@@ -270,16 +307,24 @@ public class Mailer implements AutoCloseable {
 		return true;
 	}
 
-	private void saveFile(final byte[] contentData, final String jobId,
-			final String outputFileType) throws IOException {
-		final String fileName = jobId + "." + outputFileType;
-		final java.io.File file = new java.io.File(this.storeDir, fileName);
-		final FileOutputStream fos = new FileOutputStream(file);
+	public boolean saveToStream(final InputStream inStream,
+			final OutputStream out) throws IOException {
+		boolean writeStatus = false;
 		try {
-			fos.write(contentData);
-		} finally {
-			fos.close();
+			final byte[] buf = new byte[1024];
+			int len = 0;
+			while ((len = inStream.read(buf)) > 0) {
+				out.write(buf, 0, len);
+			}
+
+			inStream.close();
+			writeStatus = true;
+		} catch (final IOException e) {
+			System.out.println("Excepton while downloading file ");
+			e.printStackTrace();
+			throw e;
 		}
+		return writeStatus;
 	}
 
 	private int addEmailAddressToDB(final String address) throws SQLException {

@@ -28,11 +28,16 @@ import org.apache.log4j.Logger;
 
 import com.actuate.schemas.ActuateSoapBindingStub;
 import com.actuate.schemas.ActuateSoapPort;
+import com.actuate.schemas.ArrayOfAttachment;
+import com.actuate.schemas.Attachment;
+import com.actuate.schemas.DownloadFile;
 import com.actuate.schemas.DownloadFileResponse;
 import com.actuate.schemas.Login;
 import com.actuate.schemas.LoginResponse;
 import com.actuate.schemas.SystemLogin;
 import com.actuate.schemas.SystemLoginResponse;
+import com.actuate.schemas.UploadFile;
+import com.actuate.schemas.UploadFileResponse;
 import com.actuate.schemas.User;
 
 /**
@@ -457,27 +462,26 @@ public class IdapiHelperImpl implements InvocationHandler {
 	 * viewable format.But attachments ids will be shown to user.This example
 	 * can be modified easily to save those attachments as different files.
 	 * 
-	 * @param FileName
+	 * @param fileId
 	 * @param decomposeCompoundDocument
 	 * @param downloadEmbedded
 	 * @param downloadDirectory
 	 * @return boolean
 	 * 
 	 */
-	public String downloadFile(final String FileName,
+	public String downloadFile(final String fileId,
 			final boolean decomposeCompoundDocument,
 			final boolean downloadEmbedded, final String downloadDirectory)
 			throws Exception {
-		System.out.println("Download " + FileName);
 		final ActuateSoapBindingStub proxy = (ActuateSoapBindingStub) port;
-		final com.actuate.schemas.DownloadFile downloadFile = new com.actuate.schemas.DownloadFile();
-		downloadFile.setFileName(FileName);
+		final DownloadFile downloadFile = new DownloadFile();
+		downloadFile.setFileId(fileId);
 		downloadFile.setDecomposeCompoundDocument(new Boolean(
 				decomposeCompoundDocument));
 		downloadFile.setDownloadEmbedded(new Boolean(downloadEmbedded));
 
 		String downloadName = null;
-		com.actuate.schemas.DownloadFileResponse downloadFileResponse = null;
+		DownloadFileResponse downloadFileResponse = null;
 		try {
 			downloadFileResponse = proxy.downloadFile(downloadFile);
 
@@ -521,8 +525,7 @@ public class IdapiHelperImpl implements InvocationHandler {
 						localFilePath));
 			}
 
-			final com.actuate.schemas.Attachment attachment = downloadFileResponse
-					.getContent();
+			final Attachment attachment = downloadFileResponse.getContent();
 			if (attachment != null) {
 				final byte[] b = attachment.getContentData();
 				System.out.println("Attachment retrived as "
@@ -532,11 +535,11 @@ public class IdapiHelperImpl implements InvocationHandler {
 				}
 			}
 
-			final com.actuate.schemas.ArrayOfAttachment arrayOfAttachment = downloadFileResponse
+			final ArrayOfAttachment arrayOfAttachment = downloadFileResponse
 					.getContainedFiles();
 
 			if (arrayOfAttachment != null) {
-				final com.actuate.schemas.Attachment[] attachments = arrayOfAttachment
+				final Attachment[] attachments = arrayOfAttachment
 						.getAttachment();
 				for (int i = 0; i < attachments.length; i++) {
 					if (attachments[i] != null) {
@@ -643,12 +646,11 @@ public class IdapiHelperImpl implements InvocationHandler {
 		return writeStatus;
 	}
 
-	public com.actuate.schemas.UploadFileResponse uploadFile(
-			final com.actuate.schemas.UploadFile request,
+	public UploadFileResponse uploadFile(final UploadFile request,
 			final org.apache.axis.attachments.AttachmentPart attachmentPart)
 			throws RemoteException, RemoteException, ServiceException {
 		final ActuateSoapBindingStub proxy = (ActuateSoapBindingStub) port;
-		com.actuate.schemas.UploadFileResponse response;
+		UploadFileResponse response;
 		try {
 			proxy.addAttachment(attachmentPart);
 			response = proxy.uploadFile(request);
@@ -688,4 +690,14 @@ public class IdapiHelperImpl implements InvocationHandler {
 	 * (UploadFileResponse) JavaUtils.convert(resp, UploadFileResponse.class); }
 	 * }
 	 */
+
+	public Object[] getAttachments() {
+		final ActuateSoapBindingStub proxy = (ActuateSoapBindingStub) port;
+		return proxy.getAttachments();
+	}
+
+	public void clearAttachments() {
+		final ActuateSoapBindingStub proxy = (ActuateSoapBindingStub) port;
+		proxy.clearAttachments();
+	}
 }
