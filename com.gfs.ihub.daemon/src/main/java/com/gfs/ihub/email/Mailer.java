@@ -85,7 +85,7 @@ public class Mailer implements AutoCloseable {
 		// Setup the location to store download files
 		java.io.File storeDir = new java.io.File(fileOptions.getStoreDirName());
 		if (!storeDir.exists()) {
-			storeDir = new java.io.File(fileOptions.getAltStoreDirName());
+			throw new RuntimeException("No smtp config file");
 		}
 		storeDir.mkdirs();
 		this.storeDir = storeDir;

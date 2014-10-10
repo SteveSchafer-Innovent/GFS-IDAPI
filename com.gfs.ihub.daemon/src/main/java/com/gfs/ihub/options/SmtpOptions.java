@@ -12,10 +12,10 @@ public class SmtpOptions extends PropertiesBasedOptions {
 	final boolean auth;
 	final String defaultFrom;
 
-	public SmtpOptions(final String dirName, final String altDirName, final String fileName, final String host, final int port,
+	public SmtpOptions(final String configDirName,  final String configFileName, final String host, final int port,
 			final String username, final String password, final boolean enableSSL, final boolean enableSTARTTLS, final boolean auth,
 			final String defaultFrom) throws IOException {
-		super(dirName, fileName);
+		super(configDirName, configFileName);
 		this.host = properties.getProperty("mail.smtp.host", host);
 		this.port = Integer.parseInt(properties.getProperty("mail.smtp.port", String.valueOf(port)));
 		this.username = properties.getProperty("username", username);

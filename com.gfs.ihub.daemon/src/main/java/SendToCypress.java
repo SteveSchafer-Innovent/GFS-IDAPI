@@ -12,10 +12,10 @@ public class SendToCypress extends BaseDaemon {
 
 		SendToCypress.init(args);
 
-		final ActuateOptions actuateOptions = new ActuateOptions(CONFIG_DIR, ALT_CONFIG_DIR, "actuate.properties",
+		final ActuateOptions actuateOptions = new ActuateOptions(CONFIG_DIR, "actuate.properties",
 				"http://hippo.gfsprod.nt.gfs.com:8000", "GFS Operational Reporting", "vm7ji", "5Clocks!");
 
-		final CypressOptions cypressOptions = new CypressOptions(CONFIG_DIR, ALT_CONFIG_DIR, "cypress.properties", "/send_to_cypress", "\\\\wolverine\\FTin\\Operational Reporting\\");
+		final CypressOptions cypressOptions = new CypressOptions(CONFIG_DIR, "cypress.properties", "/send_to_cypress", "\\\\wolverine\\FTin\\Operational Reporting\\");
 
 		try {
 			System.out.println("Start time: " + new Date());
