@@ -15,7 +15,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import com.actuate.schemas.AdminOperation;
 import com.actuate.schemas.Administrate;
@@ -55,7 +58,11 @@ public class CypressDownloader implements java.io.Serializable {
 		helper.login(actuateOptions.getVolume(), actuateOptions.getUsername(), actuateOptions.getPassword(), new byte[0], false);
 		
 		this.iHubFolderName = cypressOptions.getiHubCypressFolderName();
-		this.osDestinationFolderName = cypressOptions.getOsDestinationFolder();
+		String tmpFolderName = cypressOptions.getOsDestinationFolder();
+		if(!tmpFolderName.endsWith(java.io.File.separator)){
+			tmpFolderName += java.io.File.separator;
+		}
+		this.osDestinationFolderName = tmpFolderName;
 
 	}
 
@@ -64,10 +71,10 @@ public class CypressDownloader implements java.io.Serializable {
 
 		List<String> messages = new ArrayList<String>();
 
-		List<String> pdfFilesToProcess = getPDFInFolder();
-		for (String iHubFileName : pdfFilesToProcess) {
-			messages.add(downloadFile(iHubFileName));
-			messages.add(deleteFile(iHubFileName));
+		Map<String, String> pdfFilesToProcess = getPDFInFolder();
+		for (Entry<String, String> iHubFile : pdfFilesToProcess.entrySet()) {
+			messages.add(downloadFile(iHubFile));
+			messages.add(deleteFile(iHubFile));
 		}
 
 		return messages;
@@ -78,9 +85,9 @@ public class CypressDownloader implements java.io.Serializable {
 	 *
 	 * @return GetFolderItemsResponse
 	 */
-	private List<String> getPDFInFolder() {
+	private Map<String, String> getPDFInFolder() {
 
-		List<String> filesToProcess = new ArrayList<String>();
+		Map<String, String> filesToProcess = new HashMap<String, String>();
 
 		ArrayOfString resultDef = ResultDefConsts.getFolderItemsResultDef();
 
@@ -107,8 +114,9 @@ public class CypressDownloader implements java.io.Serializable {
 
 			ArrayOfFile itemList = response.getItemList();
 			for (int i = 0; i < response.getTotalCount().intValue(); i++) {
-				File file = itemList.getFile(i);
-				filesToProcess.add(file.getName());
+				File iHubFile = itemList.getFile(i);
+				filesToProcess.put(iHubFile.getId(), createUniqueFileName(iHubFile));
+				
 			}
 
 		} catch (Exception e) {
@@ -117,21 +125,35 @@ public class CypressDownloader implements java.io.Serializable {
 		return filesToProcess;
 
 	}
-
-	private String downloadFile(final String iHubFileName) {
-
+	
+	/*
+	 * Only works with PDF file names
+	 */
+	private String createUniqueFileName(final File iHubFile){
 		StringBuffer sb = new StringBuffer();
-		sb.append("download: ").append(iHubFileName);
+		String fName = iHubFile.getName();
+		sb.append(fName.subSequence(0, fName.toLowerCase().indexOf(".pdf")));
+		sb.append("_").append(iHubFile.getVersion());
+		sb.append(".pdf");
+		
+		return sb.toString();
+	}
+
+	private String downloadFile(final Entry<String, String> iHubFile) {
+
+		String iHubFileNm = iHubFile.getValue();
+		StringBuffer sb = new StringBuffer();
+		sb.append("download: ").append(iHubFileNm);
 
 		DownloadFile downloadFile = new DownloadFile();
 		downloadFile.setDownloadEmbedded(Boolean.TRUE);
-		downloadFile.setFileName(iHubFileName);
+		downloadFile.setFileId(iHubFile.getKey());
 
 		try {
 			DownloadFileResponse downloadFileResponse = helper.downloadFile(downloadFile);
-
+			
 			//Enter the path to your network folder. Download the file to the network directory.
-			String fileName = iHubFileName.substring(iHubFileName.lastIndexOf("/") + 1, iHubFileName.length());
+			String fileName = iHubFileNm.substring(iHubFileNm.lastIndexOf("/") + 1, iHubFileNm.length());
 			String dlFullFilePath = this.osDestinationFolderName + fileName;
 			FileOutputStream fos = new FileOutputStream(dlFullFilePath);
 			Attachment attachment = downloadFileResponse.getContent();
@@ -152,12 +174,12 @@ public class CypressDownloader implements java.io.Serializable {
 	}
 
 	//Delete the output file from the iServer
-	private String deleteFile(String iHubFileName) {
+	private String deleteFile(Entry<String, String> iHubFile) {
 
 		StringBuffer sb = new StringBuffer();
-		sb.append("Delete: ").append(iHubFileName);
+		sb.append("Delete: ").append(iHubFile.getValue());
 		final DeleteFile deleteFile = new DeleteFile();
-		deleteFile.setName(iHubFileName);
+		deleteFile.setId(iHubFile.getKey());
 
 		final AdminOperation adminOperation = new AdminOperation();
 		adminOperation.setDeleteFile(deleteFile);
