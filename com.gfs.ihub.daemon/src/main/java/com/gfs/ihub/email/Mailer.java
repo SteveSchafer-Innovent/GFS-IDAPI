@@ -1,6 +1,5 @@
 package com.gfs.ihub.email;
 
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
@@ -11,7 +10,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 import com.actuate.schemas.ArrayOfJobCondition;
 import com.actuate.schemas.ArrayOfJobProperties;
@@ -31,6 +29,10 @@ import com.actuate.schemas.JobSearch;
 import com.actuate.schemas.ParameterValue;
 import com.actuate.schemas.SelectJobs;
 import com.actuate.schemas.SelectJobsResponse;
+import com.gfs.ihub.options.ActuateOptions;
+import com.gfs.ihub.options.FileOptions;
+import com.gfs.ihub.options.SmtpOptions;
+import com.gfs.ihub.options.SqlOptions;
 import com.innoventsolutions.consts.ResultDefConsts;
 import com.innoventsolutions.idapihelper.IdapiHelper;
 import com.innoventsolutions.idapihelper.IdapiHelperException;
@@ -47,205 +49,31 @@ public class Mailer implements AutoCloseable {
 	private final java.io.File storeDir;
 	private final Logger logger;
 
-	public static abstract class PropertiesBasedOptions {
-		final String dirName;
-		final String altDirName;
-		final String fileName;
-		final boolean propertiesFileExists;
-		final Properties properties = new Properties();
-
-		protected PropertiesBasedOptions(final String dirName,
-				final String altDirName, final String fileName)
-				throws IOException {
-			this.dirName = dirName;
-			this.altDirName = altDirName;
-			this.fileName = fileName;
-			boolean fileExists = true;
-			java.io.File dir = new java.io.File(dirName);
-			if (!dir.exists()) {
-				dir = new java.io.File(altDirName);
-				if (!dir.exists()) {
-					fileExists = false;
-				}
-			}
-			if (fileExists) {
-				final java.io.File file = new java.io.File(dir, fileName);
-				fileExists = file.exists();
-				if (fileExists) {
-					final FileInputStream fis = new FileInputStream(file);
-					try {
-						properties.load(fis);
-					} finally {
-						fis.close();
-					}
-				}
-			}
-			this.propertiesFileExists = fileExists;
-		}
-
-		abstract void setProperties();
-
-		final void store() throws IOException {
-			setProperties();
-			java.io.File dir = new java.io.File(dirName);
-			if (!dir.exists()) {
-				dir = new java.io.File(altDirName);
-				if (!dir.exists()) {
-					throw new RuntimeException(
-							"Can't create the properties file");
-				}
-			}
-			final java.io.File file = new java.io.File(dir, fileName);
-			final FileOutputStream fos = new FileOutputStream(file);
-			try {
-				properties.store(fos, "");
-			} finally {
-				fos.close();
-			}
-		}
-	}
-
-	public static class ActuateOptions extends PropertiesBasedOptions {
-		final String urlString;
-		final String volume;
-		final String username;
-		final String password;
-
-		public ActuateOptions(final String dirName, final String altDirName,
-				final String fileName, final String urlString,
-				final String volume, final String username,
-				final String password) throws IOException {
-			super(dirName, altDirName, fileName);
-			this.urlString = properties.getProperty("url", urlString);
-			this.volume = properties.getProperty("volume", volume);
-			this.username = properties.getProperty("username", username);
-			this.password = properties.getProperty("password", password);
-		}
-
-		@Override
-		void setProperties() {
-			properties.setProperty("url", urlString);
-			properties.setProperty("volume", volume);
-			properties.setProperty("username", username);
-			properties.setProperty("password", password);
-		}
-	}
-
-	public static class SmtpOptions extends PropertiesBasedOptions {
-		final String host;
-		final int port;
-		final String username;
-		final String password;
-		final boolean enableSSL;
-		final boolean enableSTARTTLS;
-		final boolean auth;
-		final String defaultFrom;
-
-		public SmtpOptions(final String dirName, final String altDirName,
-				final String fileName, final String host, final int port,
-				final String username, final String password,
-				final boolean enableSSL, final boolean enableSTARTTLS,
-				final boolean auth, final String defaultFrom)
-				throws IOException {
-			super(dirName, altDirName, fileName);
-			this.host = properties.getProperty("mail.smtp.host", host);
-			this.port = Integer.parseInt(properties.getProperty(
-					"mail.smtp.port", String.valueOf(port)));
-			this.username = properties.getProperty("username", username);
-			this.password = properties.getProperty("password", password);
-			this.enableSSL = "true".equalsIgnoreCase(properties.getProperty(
-					"mail.smtp.ssl.enable", String.valueOf(enableSSL)));
-			this.enableSTARTTLS = "true".equalsIgnoreCase(properties
-					.getProperty("mail.smtp.starttls.enable",
-							String.valueOf(enableSTARTTLS)));
-			this.auth = "true".equalsIgnoreCase(properties.getProperty(
-					"mail.smtp.auth", String.valueOf(auth)));
-			this.defaultFrom = properties.getProperty("mail.user", defaultFrom);
-		}
-
-		@Override
-		void setProperties() {
-			properties.setProperty("mail.smtp.host", host);
-			properties.setProperty("mail.smtp.port", String.valueOf(port));
-			if (username != null)
-				properties.setProperty("username", username);
-			else
-				properties.remove("username");
-			if (password != null)
-				properties.setProperty("password", password);
-			else
-				properties.remove("password");
-			properties.setProperty("mail.smtp.ssl.enable",
-					String.valueOf(enableSSL));
-			properties.setProperty("mail.smtp.starttls.enable",
-					String.valueOf(enableSTARTTLS));
-			properties.setProperty("mail.smtp.auth", String.valueOf(auth));
-			properties.setProperty("mail.user", defaultFrom);
-		}
-	}
-
-	public static class SqlOptions extends PropertiesBasedOptions {
-		final String urlString;
-		final String username;
-		final String password;
-
-		public SqlOptions(final String dirName, final String altDirName,
-				final String fileName, final String urlString,
-				final String username, final String password)
-				throws IOException {
-			super(dirName, altDirName, fileName);
-			this.urlString = properties.getProperty("url", urlString);
-			this.username = properties.getProperty("username", username);
-			this.password = properties.getProperty("password", password);
-		}
-
-		@Override
-		void setProperties() {
-			properties.setProperty("url", urlString);
-			properties.setProperty("username", username);
-			properties.setProperty("password", password);
-		}
-	}
-
-	public static class FileOptions extends PropertiesBasedOptions {
-		final String storeDirName;
-		final String altStoreDirName;
-
-		public FileOptions(final String dirName, final String altDirName,
-				final String fileName, final String storeDirName,
-				final String altStoreDirName) throws IOException {
-			super(dirName, altDirName, fileName);
-			this.storeDirName = properties.getProperty("storeDirName",
-					storeDirName);
-			this.altStoreDirName = properties.getProperty("altStoreDirName",
-					altStoreDirName);
-		}
-
-		@Override
-		void setProperties() {
-			properties.setProperty("storeDirName", storeDirName);
-			properties.setProperty("altStoreDirName", altStoreDirName);
-		}
-	}
 
 	public Mailer(final ActuateOptions actuateOptions,
 			final SmtpOptions smtpOptions, final SqlOptions sqlOptions,
 			final FileOptions fileOptions) throws IdapiHelperException,
 			IOException, SQLException {
-		final URL serverURL = new URL(actuateOptions.urlString);
+		
+		//Setup Actuate
+		final URL serverURL = new URL(actuateOptions.getUrlString());
 		helper = IdapiHelperImpl.getInstance(new URL[] { serverURL });
-		helper.login(actuateOptions.volume, actuateOptions.username,
-				actuateOptions.password, new byte[0], false);
-		this.defaultFrom = smtpOptions.defaultFrom;
+		helper.login(actuateOptions.getVolume(), actuateOptions.getUsername(),
+				actuateOptions.getPassword(), new byte[0], false);
+		
+		//Setup SMTP Server
+		this.defaultFrom = smtpOptions.getDefaultFrom();
 		smtpOptions.store();
 		final Logger logger = new Logger();
-		this.email = new Email(smtpOptions.properties, smtpOptions.username,
-				smtpOptions.password, logger);
+		this.email = new Email(smtpOptions.getProperties(), smtpOptions.getUsername(),
+				smtpOptions.getPassword(), logger);
 		this.logger = logger;
+		
+		//Setup JDBC connection
 		final Connection newConnection = DriverManager.getConnection(
-				sqlOptions.urlString, sqlOptions.username, sqlOptions.password);
+				sqlOptions.getUrlString(), sqlOptions.getUsername(), sqlOptions.getPassword());
 		int sqlGrammar = ORACLE;
-		if (sqlOptions.urlString.startsWith("jdbc:postgresql"))
+		if (sqlOptions.getUrlString().startsWith("jdbc:postgresql"))
 			sqlGrammar = POSTGRESQL;
 		this.sqlGrammar = sqlGrammar;
 		// take the connection out of transaction mode so readOnly can be set
@@ -253,9 +81,11 @@ public class Mailer implements AutoCloseable {
 		newConnection.setReadOnly(false);
 		newConnection.setAutoCommit(false);
 		connection = newConnection;
-		java.io.File storeDir = new java.io.File(fileOptions.storeDirName);
+		
+		// Setup the location to store download files
+		java.io.File storeDir = new java.io.File(fileOptions.getStoreDirName());
 		if (!storeDir.exists()) {
-			storeDir = new java.io.File(fileOptions.altStoreDirName);
+			storeDir = new java.io.File(fileOptions.getAltStoreDirName());
 		}
 		storeDir.mkdirs();
 		this.storeDir = storeDir;
