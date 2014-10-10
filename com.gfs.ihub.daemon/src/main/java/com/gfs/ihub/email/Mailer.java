@@ -51,7 +51,7 @@ public class Mailer implements AutoCloseable {
 	public static final int POSTGRESQL = 1;
 	private final IdapiHelper helper;
 	private final Email email;
-	private Connection connection = null;
+	private final Connection connection;
 	private final int sqlGrammar;
 	private final String defaultFrom;
 	private final java.io.File storeDir;
