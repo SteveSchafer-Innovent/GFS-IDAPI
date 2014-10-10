@@ -3,14 +3,15 @@ package com.gfs.ihub.options;
 import java.io.IOException;
 
 public class SmtpOptions extends PropertiesBasedOptions {
-	final String host;
-	final int port;
-	final String username;
-	final String password;
-	final boolean enableSSL;
-	final boolean enableSTARTTLS;
-	final boolean auth;
-	final String defaultFrom;
+	private final String host;
+	private final int port;
+	private final String username;
+	private final String password;
+	private final boolean enableSSL;
+	private final boolean enableSTARTTLS;
+	private final boolean auth;
+	private final String defaultFrom;
+	private final boolean debug;
 
 	public SmtpOptions(final String configDirName, final String configFileName)
 			throws IOException {
@@ -31,6 +32,8 @@ public class SmtpOptions extends PropertiesBasedOptions {
 				"mail.smtp.auth", String.valueOf(false)));
 		this.defaultFrom = properties.getProperty("mail.user",
 				"noreply@gfs.com");
+		this.debug = "true".equalsIgnoreCase(properties.getProperty("debug",
+				"false"));
 	}
 
 	public String getHost() {
@@ -63,5 +66,9 @@ public class SmtpOptions extends PropertiesBasedOptions {
 
 	public String getDefaultFrom() {
 		return defaultFrom;
+	}
+
+	public boolean isDebug() {
+		return debug;
 	}
 }

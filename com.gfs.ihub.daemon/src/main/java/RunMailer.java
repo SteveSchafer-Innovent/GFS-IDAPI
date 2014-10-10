@@ -5,7 +5,6 @@ import javax.mail.MessagingException;
 
 import com.gfs.ihub.email.Mailer;
 import com.gfs.ihub.options.ActuateOptions;
-import com.gfs.ihub.options.FileOptions;
 import com.gfs.ihub.options.SmtpOptions;
 import com.gfs.ihub.options.SqlOptions;
 import com.innoventsolutions.idapihelper.IdapiHelperException;
@@ -33,11 +32,8 @@ public class RunMailer extends BaseDaemon {
 		final SqlOptions sqlOptions = new SqlOptions(CONFIG_DIR,
 				"sql.properties");
 
-		final FileOptions fileOptions = new FileOptions(CONFIG_DIR,
-				"file.properties");
-
 		final Mailer mailer = new Mailer(actuateOptions, smtpOptions,
-				sqlOptions, fileOptions);
+				sqlOptions);
 
 		mailer.processJobs();
 		mailer.close();

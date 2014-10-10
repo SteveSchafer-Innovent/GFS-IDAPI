@@ -21,15 +21,21 @@ import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
 import javax.mail.util.ByteArrayDataSource;
 
-public class Email {
+import com.gfs.ihub.options.SmtpOptions;
+
+public class EmailInterface {
 	private final Properties emailProperties;
 	private final Logger logger;
 	private final PasswordAuthentication pa;
+	private final SmtpOptions options;
 
-	public Email(final Properties emailProperties, final String username,
-			final String password, final Logger logger) throws IOException {
+	public EmailInterface(final SmtpOptions options, final Logger logger)
+			throws IOException {
+		this.options = options;
+		final String username = options.getUsername();
+		final String password = options.getPassword();
 		this.logger = logger;
-		this.emailProperties = emailProperties;
+		this.emailProperties = options.getProperties();
 		this.pa = username == null ? null : new PasswordAuthentication(
 				username, password);
 	}
@@ -39,7 +45,6 @@ public class Email {
 			final String body, final boolean multiple, final String fileName,
 			final java.io.File contentFile, final String contentType)
 			throws IOException, MessagingException {
-		logger.log("sending");
 		final Session session = pa == null ? Session
 				.getInstance(emailProperties) : Session.getInstance(
 				emailProperties, new Authenticator() {
@@ -48,7 +53,7 @@ public class Email {
 						return pa;
 					}
 				});
-		session.setDebug(true);
+		session.setDebug(options.isDebug());
 		if (multiple) {
 			final StringBuilder status = new StringBuilder();
 			String sep = "";
