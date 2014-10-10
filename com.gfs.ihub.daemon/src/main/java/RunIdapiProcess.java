@@ -9,7 +9,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 
 import com.gfs.ihub.cypress.CypressDownloader;
@@ -33,13 +32,14 @@ public class RunIdapiProcess {
 	public static void main(final String[] args) throws IdapiHelperException, IOException, SQLException, MessagingException {
 
 		String defaultConfig = "D:/Actuate3/BIRTiHubVisualization/modules/BIRTiHub/iHub/data/server/log/mailer";
-		String defaultProcess = "email";
+		String defaultOperation = "both";
 
 		CommandLineParser parser = new PosixParser();
 		Options options = new Options();
 		options.addOption("h", "help", false, "print this message");
-		options.addOption("o", "operation", true, "email or cypress");
-		options.addOption("d", "d", true, "config directory c:\\\\temp\\config");
+		options.addOption("o", "operation", true, "what operation to perform (both is default)\n[both, email or cypress]");
+		String hMsg = "config directory default value [" + defaultConfig + "]";
+		options.addOption("d", "directory", true, hMsg);
 
 		CommandLine line;
 		try {
@@ -50,11 +50,11 @@ public class RunIdapiProcess {
 		}
 		if (line.hasOption("h")) {
 			HelpFormatter formatter = new HelpFormatter();
-			formatter.printHelp("PrintReportCmd", options);
+			formatter.printHelp(100, "IDAPI Daemon Command Line Options\n", "", options, "");
 			return;
 		}
 		final String configDir = line.getOptionValue("d", defaultConfig);
-		final String operation = line.getOptionValue("o", defaultConfig);
+		final String operation = line.getOptionValue("o", defaultOperation);
 
 		final ActuateOptions actuateOptions = new ActuateOptions(configDir, "actuate.properties");
 		final SmtpOptions smtpOptions = new SmtpOptions(configDir, "smtp.properties");
@@ -62,24 +62,32 @@ public class RunIdapiProcess {
 		final FileOptions fileOptions = new FileOptions(configDir, "file.properties");
 		final CypressOptions cypressOptions = new CypressOptions(configDir, "cypress.properties");
 
-		if (defaultProcess.equals(operation)) {
-			System.out.println("Running Email for Email");
-			final Mailer mailer = new Mailer(actuateOptions, smtpOptions, sqlOptions, fileOptions);
-			mailer.processJobs();
-			mailer.close();
-		} else {
-			System.out.println("Running Email for Cypress");
-			System.out.println("Start time: " + new Date());
+		System.out.println("*** START DAEMON: " + new Date());
+		if (defaultOperation.equals(operation) || "email".equals(operation)) {
+			System.out.println("*** START EMAIL: " + new Date());
+			try {
+				final Mailer mailer = new Mailer(actuateOptions, smtpOptions, sqlOptions, fileOptions);
+				mailer.processJobs();
+				mailer.close();
+			} catch (Exception ex) {
+				System.out.println("Failure while running email " + ex.getMessage());
+			}
+			System.out.println("*** END EMAIL: " + new Date());
+		}
+		if (defaultOperation.equals(operation) || "cypress".equals(operation)) {
+			System.out.println("*** START CYPRESS: " + new Date());
+			try {
 			final CypressDownloader cypressDownloader = new CypressDownloader(actuateOptions, cypressOptions);
-			System.out.println("Connected to server. Getting Files from the Encyc Volume...");
 			final List<String> messages = cypressDownloader.downloadFiles();
 			for (final String msg : messages) {
 				System.out.println(msg);
 			}
-			System.out.println("End time: " + new Date());
-			System.out.println("***********************************************************");
+			} catch (Exception ex){
+				System.out.println("Failure while running Cypress " + ex.getMessage());
+			}
+			System.out.println("*** END CYPRESS: " + new Date());
 		}
+		System.out.println("*** END DAEMON: " + new Date());
 
 	}
-
 }
