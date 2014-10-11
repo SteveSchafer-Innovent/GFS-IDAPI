@@ -18,8 +18,7 @@ public class RunMailer extends BaseDaemon {
 	 * @throws SQLException
 	 * @throws MessagingException
 	 */
-	public static void main(final String[] args) throws IdapiHelperException,
-			IOException, SQLException, MessagingException {
+	public static void main(final String[] args) throws IOException {
 
 		RunMailer.init(args);
 

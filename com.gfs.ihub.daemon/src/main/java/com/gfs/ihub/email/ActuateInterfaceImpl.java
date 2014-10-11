@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.RemoteException;
 import java.util.HashMap;
@@ -35,7 +34,6 @@ import com.actuate.schemas.SelectJobsResponse;
 import com.gfs.ihub.options.ActuateOptions;
 import com.innoventsolutions.consts.ResultDefConsts;
 import com.innoventsolutions.idapihelper.IdapiHelper;
-import com.innoventsolutions.idapihelper.IdapiHelperException;
 import com.innoventsolutions.idapihelper.IdapiHelperImpl;
 
 public class ActuateInterfaceImpl implements ActuateInterface {
@@ -44,14 +42,18 @@ public class ActuateInterfaceImpl implements ActuateInterface {
 	private final Logger logger;
 
 	public ActuateInterfaceImpl(final ActuateOptions options,
-			final Logger logger) throws MalformedURLException,
-			IdapiHelperException {
+			final Logger logger) {
 		this.options = options;
 		this.logger = logger;
-		final URL serverURL = new URL(options.getUrlString());
-		helper = IdapiHelperImpl.getInstance(new URL[] { serverURL });
-		helper.login(options.getVolume(), options.getUsername(),
-				options.getPassword(), new byte[0], false);
+		try {
+			final URL serverURL = new URL(options.getUrlString());
+			helper = IdapiHelperImpl.getInstance(new URL[] { serverURL });
+			helper.login(options.getVolume(), options.getUsername(),
+					options.getPassword(), new byte[0], false);
+		} catch (final Exception e) {
+			throw new RuntimeException(
+					"Unable to instantiate ActuateInterface", e);
+		}
 		logger.log("Successfully logged in to Actuate");
 	}
 

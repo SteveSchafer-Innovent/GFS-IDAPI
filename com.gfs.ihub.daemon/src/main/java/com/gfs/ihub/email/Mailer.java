@@ -1,14 +1,10 @@
 package com.gfs.ihub.email;
 
 import java.io.IOException;
-import java.sql.SQLException;
-
-import javax.mail.MessagingException;
 
 import com.gfs.ihub.options.ActuateOptions;
 import com.gfs.ihub.options.SmtpOptions;
 import com.gfs.ihub.options.SqlOptions;
-import com.innoventsolutions.idapihelper.IdapiHelperException;
 
 public class Mailer implements AutoCloseable, ActuateInterface.JobProcessor {
 	private final String defaultFrom;
@@ -19,7 +15,7 @@ public class Mailer implements AutoCloseable, ActuateInterface.JobProcessor {
 
 	public Mailer(final ActuateOptions actuateOptions,
 			final SmtpOptions smtpOptions, final SqlOptions sqlOptions)
-			throws IdapiHelperException, IOException, SQLException {
+			throws IOException {
 		final Logger logger = new Logger();
 		this.logger = logger;
 
@@ -28,15 +24,14 @@ public class Mailer implements AutoCloseable, ActuateInterface.JobProcessor {
 		databaseInterface = new DatabaseInterfaceImpl(sqlOptions, logger);
 
 		this.defaultFrom = smtpOptions.getDefaultFrom();
-		this.emailInterface = new EmailInterface(smtpOptions, logger);
+		this.emailInterface = new EmailInterfaceImpl(smtpOptions, logger);
 	}
 
-	public void close() throws SQLException {
+	public void close() {
 		databaseInterface.close();
 	}
 
-	public void processJobs() throws IOException, SQLException,
-			MessagingException {
+	public void processJobs() throws IOException {
 		actuateInterface.processJobs(this);
 	}
 
