@@ -45,7 +45,7 @@ public class Mailer implements AutoCloseable, ActuateInterface.JobProcessor {
 					.addMimeTypeToDB(contentType);
 
 			final String from = emailFrom == null ? defaultFrom : emailFrom;
-			final String[] to = emailTo.split(",[ ]*");
+			final String[] to = emailTo.split("[ ]*[,;][ ]*");
 			final String[] cc = new String[0];
 			final String[] bcc = new String[0];
 			final String subject = emailSubject == null ? "BIRT report"
