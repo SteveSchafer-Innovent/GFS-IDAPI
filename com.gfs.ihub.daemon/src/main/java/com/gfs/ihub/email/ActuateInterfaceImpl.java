@@ -32,9 +32,9 @@ import com.actuate.schemas.ParameterValue;
 import com.actuate.schemas.SelectJobs;
 import com.actuate.schemas.SelectJobsResponse;
 import com.gfs.ihub.options.ActuateOptions;
-import com.innoventsolutions.consts.ResultDefConsts;
 import com.innoventsolutions.idapihelper.IdapiHelper;
 import com.innoventsolutions.idapihelper.IdapiHelperImpl;
+import com.innoventsolutions.idapihelper.ResultDefConsts;
 
 public class ActuateInterfaceImpl implements ActuateInterface {
 	private final ActuateOptions options;

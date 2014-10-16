@@ -36,10 +36,10 @@ import com.actuate.schemas.GetFolderItems;
 import com.actuate.schemas.GetFolderItemsResponse;
 import com.gfs.ihub.options.ActuateOptions;
 import com.gfs.ihub.options.CypressOptions;
-import com.innoventsolutions.consts.ResultDefConsts;
 import com.innoventsolutions.idapihelper.IdapiHelper;
 import com.innoventsolutions.idapihelper.IdapiHelperException;
 import com.innoventsolutions.idapihelper.IdapiHelperImpl;
+import com.innoventsolutions.idapihelper.ResultDefConsts;
 
 public class CypressDownloader implements java.io.Serializable {
 
