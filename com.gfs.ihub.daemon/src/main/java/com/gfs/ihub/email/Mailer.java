@@ -1,12 +1,16 @@
 package com.gfs.ihub.email;
 
 import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.gfs.ihub.options.ActuateOptions;
 import com.gfs.ihub.options.SmtpOptions;
 import com.gfs.ihub.options.SqlOptions;
 
 public class Mailer implements AutoCloseable, ActuateInterface.JobProcessor {
+	private static final Pattern FILENAME_PATTERN = Pattern
+			.compile("/(?:[a-zA-Z0-9_]*/)+([^;]+).*");
 	private final String defaultFrom;
 	private final Logger logger;
 	private final ActuateInterface actuateInterface;
@@ -52,8 +56,13 @@ public class Mailer implements AutoCloseable, ActuateInterface.JobProcessor {
 					: emailSubject;
 			final String body = emailBody == null ? "BIRT report" : emailBody;
 
+			final Matcher matcher = FILENAME_PATTERN.matcher(fileName);
+
+			final String trimmedFilename = matcher.find() ? matcher.group(1)
+					: fileName;
+
 			emailInterface.sendMail(from, to, cc, bcc, subject, body, false,
-					fileName, outputFile, contentType);
+					trimmedFilename, outputFile, contentType);
 
 			final int senderPk = databaseInterface.addEmailAddressToDB(from);
 
