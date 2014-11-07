@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public class PatternTest {
 	private static final Pattern FILENAME_PATTERN = Pattern
-			.compile("/(?:[a-zA-Z0-9_]*/)+([^;]+).*");
+			.compile("/(?:[^/]*/)+([^;]+).*");
 
 	public static void main(final String[] args) {
 		final String fileName = args[0];

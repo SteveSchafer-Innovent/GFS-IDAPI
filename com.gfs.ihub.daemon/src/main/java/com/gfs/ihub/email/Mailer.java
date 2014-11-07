@@ -10,7 +10,7 @@ import com.gfs.ihub.options.SqlOptions;
 
 public class Mailer implements AutoCloseable, ActuateInterface.JobProcessor {
 	private static final Pattern FILENAME_PATTERN = Pattern
-			.compile("/(?:[a-zA-Z0-9_]*/)+([^;]+).*");
+			.compile("/(?:[^/]*/)+([^;]+).*");
 	private final String defaultFrom;
 	private final Logger logger;
 	private final ActuateInterface actuateInterface;
