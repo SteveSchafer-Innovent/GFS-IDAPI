@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.gfs.ihub.daemon</groupId>
 	<artifactId>com.gfs.ihub.daemon</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.3-SNAPSHOT</version>
 	<dependencies>
 		<dependency>
 			<groupId>com.actuate</groupId>

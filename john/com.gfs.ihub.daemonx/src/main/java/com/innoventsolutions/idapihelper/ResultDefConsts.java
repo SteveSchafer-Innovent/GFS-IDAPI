@@ -53,7 +53,7 @@ public class ResultDefConsts {
 		final ArrayOfString resultDef = new ArrayOfString();
 		final String[] results = { "JobId", "JobName", "JobType",
 				"InputFileName", "NextStartTime", "RequestedOutputFileName",
-				"State" , "Owner"};
+				"State" };
 		resultDef.setString(results);
 		return resultDef;
 	}
@@ -62,8 +62,7 @@ public class ResultDefConsts {
 		final ArrayOfString resultDef = new ArrayOfString();
 		final String[] results = { "JobAttributes", "InputDetail", "Schedules",
 				"PrinterOptions", "NotifyUsers", "DefaultOutputFileACL",
-				"Status", "ReportParameters", "Query", "OutputFileAccessType"};
-	
+				"Status", "ReportParameters", "Query", "OutputFileAccessType" };
 		resultDef.setString(results);
 		return resultDef;
 	}
